@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SSetupData>
+  <deviceName>dlc_rdeluna</deviceName>
+  <datFile>content.xml</datFile>
+  <timeStamp>11/11/2026 00:00:00</timeStamp>
+  <nameHash>RDELUNA</nameHash>
+  <contentChangeSets />
+  <contentChangeSetGroups>
+    <Item>
+      <NameHash>GROUP_STARTUP</NameHash>
+      <ContentChangeSets><Item>RDELUNA_STARTUP</Item></ContentChangeSets>
+    </Item>
+  </contentChangeSetGroups>
+  <startupScript />
+  <type>EXTRACONTENT_COMPAT_PACK</type>
+  <order value="63" />
+  <minorOrder value="0" />
+  <isLevelPack value="false" />
+  <dependencyPackHash />
+  <requiredVersion />
+  <subPackCount value="0" />
+</SSetupData>
