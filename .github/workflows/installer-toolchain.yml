@@ -1,0 +1,45 @@
+name: Build FiveStarPort installer verifier
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - installer-ci/**
+      - .github/workflows/installer-toolchain.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-toolchain
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    if: github.event.repository.private == false
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile the installer verifier for Apple Silicon
+        run: bash installer-ci/build.sh "$RUNNER_TEMP/installer-tools"
+      - name: Test an OpenIV package and reject a mismatched payload digest
+        run: python3 installer-ci/test/smoke.py "$RUNNER_TEMP/installer-tools/verify-install"
+      - name: Package the verified utilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp installer-ci/{README.md,LICENSE} "$RUNNER_TEMP/installer-tools/"
+          mkdir -p "$RUNNER_TEMP/publish"
+          cd "$RUNNER_TEMP/publish"
+          tar -czf fivestarport-installer-verifier-macos-arm64.tar.gz -C "$RUNNER_TEMP/installer-tools" .
+          shasum -a 256 fivestarport-installer-verifier-macos-arm64.tar.gz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fivestarport-installer-verifier-macos-arm64
+          path: ${{ runner.temp }}/publish/
+          if-no-files-found: error
+          retention-days: 30
