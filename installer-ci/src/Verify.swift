@@ -36,6 +36,7 @@ struct Manifest: Decodable {
     let root_folder: String
     let targets: [String: Entry]
     let companion: Companion?
+    let ccombatinfo_capacity: Int?
 }
 
 func sha256(_ url: URL) throws -> String {
@@ -93,11 +94,46 @@ func sha256(_ url: URL) throws -> String {
         let native = Process()
         native.executableURL = URL(fileURLWithPath: args[0]).standardizedFileURL
             .deletingLastPathComponent().appendingPathComponent("verify-oiv")
-        native.arguments = [VerifyPaths.mods.path, cache.path, receipt.path]
+        var nativeArgs = [VerifyPaths.mods.path, cache.path, receipt.path]
+        let gameConfig = "common/data/gameconfig.xml"
+        if manifest.ccombatinfo_capacity != nil {
+            let fixture = VerifyPaths.workspace.appendingPathComponent("gameconfig.xml")
+            let platforms = ["Any", "pc"].map { platform in
+                """
+                <Item><Build>Any</Build><Platforms>\(platform)</Platforms><Config type="CGameConfig">
+                  <PoolSizes><Entries><Item><PoolName>CCombatInfo</PoolName><PoolSize value="16"/></Item></Entries></PoolSizes>
+                  <ConfigModelInfo><MaxExtraVehicleModelInfos value="100"/><MaxExtraPedModelInfos value="100"/></ConfigModelInfo>
+                </Config></Item>
+                """
+            }
+            let xml = "<fwAllConfigs><ConfigArray>" + platforms.joined() + "</ConfigArray></fwAllConfigs>"
+            try xml.write(to: fixture, atomically: true, encoding: .utf8)
+            nativeArgs.append(fixture.path)
+        }
+        native.arguments = nativeArgs
         try native.run()
         native.waitUntilExit()
         guard native.terminationStatus == 0 else { throw VerificationError("native OpenIV expansion failed") }
-        let entries = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: receipt))
+        var entries = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: receipt))
+        if let pool = manifest.ccombatinfo_capacity {
+            guard let configPath = entries.removeValue(forKey: gameConfig) else {
+                throw VerificationError("missing expanded gameconfig fixture")
+            }
+            let tree = try XMLDocument(contentsOf: URL(fileURLWithPath: configPath), options: [])
+            let checks = [
+                ("//Item[PoolName='CCombatInfo']/PoolSize", String(pool)),
+                ("//MaxExtraVehicleModelInfos", "512"),
+                ("//MaxExtraPedModelInfos", "512"),
+            ]
+            for (xpath, value) in checks {
+                let values = try tree.nodes(forXPath: xpath).compactMap {
+                    ($0 as? XMLElement)?.attribute(forName: "value")?.stringValue
+                }
+                guard values == [value, value] else {
+                    throw VerificationError("unexpected gameconfig values for \(xpath)")
+                }
+            }
+        }
         guard Set(entries.keys) == Set(manifest.targets.keys) else {
             throw VerificationError("expanded targets do not match the manifest")
         }

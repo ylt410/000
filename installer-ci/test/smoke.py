@@ -23,6 +23,12 @@ def main(verifier):
         assembly = ET.Element('package', version='2.1', target='Five')
         ET.SubElement(ET.SubElement(assembly, 'metadata'), 'name').text = 'Installer fixture'
         content = ET.SubElement(assembly, 'content')
+        config = ET.SubElement(content, 'xml', path='common/data/gameconfig.xml')
+        for tag in ('MaxExtraVehicleModelInfos', 'MaxExtraPedModelInfos'):
+            rule = ET.SubElement(config, 'replace', xpath=f"//{tag}[@value='100']")
+            ET.SubElement(rule, tag, value='512')
+        rule = ET.SubElement(config, 'replace', xpath="//Item[PoolName='CCombatInfo']/PoolSize[@value='16']")
+        ET.SubElement(rule, 'PoolSize', value='32')
         with ZipFile(package, 'w') as archive:
             for target, payload in assets.items():
                 ET.SubElement(content, 'add', source='files/' + target).text = target
@@ -32,6 +38,7 @@ def main(verifier):
             'root_folder': base,
             'sha256': sha256(package.read_bytes()).hexdigest(),
             'targets': {target: {'sha256': sha256(data).hexdigest()} for target, data in assets.items()},
+            'ccombatinfo_capacity': 32,
         }
         manifest.write_text(json.dumps(expected), encoding='utf-8')
         args = [str(verifier), str(package), str(manifest), str(receipt)]

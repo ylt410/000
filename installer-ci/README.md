@@ -15,8 +15,9 @@ On Apple Silicon macOS 13 or later, unpack the tool artifact and run:
 The Full receipt supplies the ZIP SHA-256, the package root, the destination
 paths and their hashes, and the optional ASI name and hash. The verifier runs
 the real unpack, install and OpenIV expansion paths in a temporary directory
-and checks the expanded files against the receipt. It verifies Full packages
-containing file additions. Runtime behavior still requires a device test.
+and checks the expanded files against the receipt. When the receipt specifies
+`ccombatinfo_capacity`, it also checks the package's gameconfig edits against
+a generated fixture. Runtime behavior still requires a device test.
 
 Build the tools on a Mac with `bash installer-ci/build.sh out`. The only
 source transformations isolate the verifier's Mods and cache paths from the
