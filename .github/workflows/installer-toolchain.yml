@@ -20,6 +20,8 @@ jobs:
     if: github.event.repository.private == false
     runs-on: macos-15
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,3 +45,22 @@ jobs:
           path: ${{ runner.temp }}/publish/
           if-no-files-found: error
           retention-days: 30
+      - name: Publish the verified utilities for local use
+        if: github.repository == 'ylt410/000' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="installer-verifier-${GITHUB_SHA:0:12}"
+          cd "$RUNNER_TEMP/publish"
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "FiveStarPort installer verifier ${GITHUB_SHA:0:12}" \
+              --notes "Standalone Apple Silicon installer verifier. Compiled and tested with synthetic fixtures." \
+              --draft --prerelease --latest=false
+          fi
+          test "$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)" = "$GITHUB_SHA"
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber \
+            fivestarport-installer-verifier-macos-arm64.tar.gz SHA256SUMS.txt
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
